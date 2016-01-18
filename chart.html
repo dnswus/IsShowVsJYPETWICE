@@ -1,0 +1,103 @@
+<html>
+<head>
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.6.2.js"></script>
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.8.3.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/jqplot/1.0.4/jquery.jqplot.min.js"></script>
+
+  <script type='text/javascript'>
+    $(window).load(function () {
+
+      function fetchLikeCount() {
+        return $.Deferred(function (defer) {
+          $.ajax({
+            dataType: 'jsonp',
+            url: 'https://api.facebook.com/method/fql.query?callback=callback',
+            data: {
+              query: 'SELECT like_count FROM link_stat WHERE url="' + getUrlVars()['pageurl'] + '"',
+              format: 'JSON'
+            }
+          }).then(function (res) {
+            try {
+              var count = res[0].like_count;
+              defer.resolve(count);
+            } catch (e) {
+              reject();
+            }
+          }, reject);
+          function reject() {
+            defer.reject(';(');
+          };
+        }).promise();
+      }
+
+      function start() {
+        var $res = $('#res');
+        fetchLikeCount().always(function (res) { // $url.val()
+          $res.html("<b>" + res + "</b> likes");
+        });
+        setTimeout(function () { start(); }, 2500);
+      }
+
+      /* initialize plot*/
+      var plot1;
+      var MaxPlotPoint = 50;
+
+      function doUpdate() {
+        var newVal = parseInt($("#res b").html().replace(/,/g, ""));
+
+        storedData.push(newVal);
+
+        if (storedData.length > MaxPlotPoint) {
+          storedData.splice(0, 1);
+        }
+
+        renderGraph();
+        setTimeout(doUpdate, 2500)
+      }
+
+      var $res = $('#res');
+      var initlikes;
+      var storedData = [];
+      fetchLikeCount().always(function (res) { // $url.val()
+        $res.html("<b>" + res + "</b> likes");
+        initlikes = parseInt($("#res b").html().replace(/,/g, ""));
+        for (var i = 0; i < MaxPlotPoint; i++) {
+          storedData.push(initlikes);
+        }
+        renderGraph();
+      });
+
+      function renderGraph() {
+        if (plot1) {
+          plot1.destroy();
+        }
+        plot1 = $.jqplot('chart1', [storedData]);
+      }
+
+      vars = getUrlVars();
+      $('#title').html(decodeURIComponent(vars['title']));
+      $('#pageurl').attr('href', vars['pageurl']);
+      $('#pageurl').html(vars['pageurl']);
+
+    	// start
+    	start();
+    	window.setTimeout( doUpdate, 3000 );
+    });
+
+    function getUrlVars() {
+      var vars = {};
+      var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi,
+      function(m,key,value) {
+        vars[key] = value;
+      });
+      return vars;
+    }
+  </script>
+</head>
+<body>
+	<h2 id="title"></h2>
+  <div><a id="pageurl" target="_blank"></a></div>
+  <div id="res"></div>
+  <div id="chart1" style="height: 75%; width: 100%; position: relative;"></div>
+</body>
+</html>
